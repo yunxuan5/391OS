@@ -1,0 +1,142 @@
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------- CHECK POINT 1 -----------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+File:   keyboard.c
+Bug:    when I was trying to initialize the keyboard array with element '\', it shows error
+Fix:    in order to initialize '\', we have to use '\\'
+
+File:   interrupt_linkage.S
+Bug:    initially did not link handler to the linkage, INTR_LINK(keyboard_irq_handler_linkage, keyboard_irq_handler), and diretly use handler in idt.c, SET_IDT_ENTRY(idt[KEYBOARD], &keyboard_irq_handler), causing error.
+Fix:    Adjust the interrupt_linkage file so that the handler is linked to the keyboard_irq_handler_linkage.
+
+File:   paging.h
+Bug:    error shows on the data type unit_32_t of all varaibles because we did not include the header file at the beginning of the file
+Fix:    add a line of code - ' #include "types.h" ' at the beginning of the code will fix the error
+
+File:   paging.c
+Bug:    rebooting
+Fix:    initialized the pages from 8mb-4gb and marked not present
+
+File:   paging.c
+Bug:    kernel crashed when booting
+Fix:    pass the correct page directory address to cr3
+
+File:   RTC.c
+Bug:    when we are calling function outb(data, port), we have these two parameters in the opposite order
+        outb(IO_PORT1, STATUS_REG_B);   // select register B
+Fix:    switch the parameter positions for data and port from our original function
+        outb(STATUS_REG_B, IO_PORT1); 
+
+File:   kernel.c
+Bug:    after I compile the program and try to run the test for idt in the test_debug, it will enter a loop of rebooting
+Fix:    we spent a hour trying to find the issue which was pretty silly when we notice that - We didn't even INITIALIZE it in KERNEL!
+        simple fix: calling our init function of idt in kernel.c
+
+File:   test.c
+Bug:    when we tring to test the divide_by_zero exception, we got a double fault when run the test in the test_debug. This means we were handling 
+        another exception, which should not happen
+Fix:    "TEST_OUTPUT("exception_divide0_test", exception_divide0_test())" Here, we are calling the test inside TEST_OUTPUT. It need our test to return 
+        a value of 1 or 0 to determine if it is pass or fail. However, when we test, program will caught an division_by_zero exception and thus will 
+        not return any value at all. We should directly call the test and see what it print.
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------- CHECK POINT 2 -----------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+File:   filesystem.c
+Bug:    got pagefault in read_dentry_by_index, dentry is NULL when doing copy
+Fix:    when called by read_dentry_by_name, pass the address of dentry
+
+File:   filesystem.c
+Bug:    cannot find the correct file to copy in read_dentry_by_index
+Fix:    accidentally use inode num to compare with index which is not the same, use dentry num instead
+
+File:   filesystem.c
+Bug:    bytes read in read_data function is wrong
+Fix:    in each read loop, add bytes read to the star of buffer to ensure data is in sequence
+
+File:   RTC.c
+Bug:    stupid and massive mistake, messing up the RTC frequency bits encoding with the actual frequency
+Fix:    change the RTC rate bit encodings 
+
+File:   RTC.c
+Bug:    RTC interrupt frequency is not set as desired because of wrong RTC virtualization implementation
+Fix:    only set RTC frequency once at RTC initialization and fixed at 1024 Hz. Whenever a frequency change is requested, calculate the number of interrupts needed to reach
+        to that frequency and each time the RTC handler is called, decrement the count.
+
+File:   lib.c
+Bug:    when I call clear(), the cursor is not resetting to the left top of screen. It will have one next line char
+Fix:    after cleaning the whole screen, we should update the cursor coordinate to 0 and 0. Then, we update cursor positions.   
+                adding:
+                terminal.cursor_x = 0;
+                terminal.cursor_y = 0;
+                update_cursor(terminal.cursor_x, terminal.cursor_y);
+
+File:   keyboard.c
+Bug:    when both capslock and shift are pressed, if we trying to press a letter, it should remain lower case instead of upper case. At first, I didn't handel this 
+        edge case
+Fix:    adding another if statement to check if letter is press or other is pressed inside (capslock_on && shift_on)
+
+File:   lib.c
+Bug:    When it hit the last line of the screen and need to scroll down to the new line, the terminal copy the contents of the last line istead of cleaning
+Fix:    we copy line 1-24 to line 0-23, and then we claer last line and update cursor
+
+File:   terminal.c
+Bug:    when I test my terminal read and write, when the enter is pressed, it did not jump to a new line if I type more than 128 word
+Fix:    in the terminal_read function, we should add a if statement to check when we fill all position in the buffer. The last char should always be next line char.
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------- CHECK POINT 3 -----------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+File:   system_calls.c
+Bug:    cannot type when executing shell
+Fix:    enable interrupts in read system call to receive keyboard interrupts
+
+File:   system_calls.c, IDT.c
+Bug:    cannot halt when receiving pagefault
+Fix:    call halt in pagefault handler, and set correct retval with corresponding status code in halt
+
+File:   system_calls.c
+Bug:    pagefault when executing ls
+Fix:    set parent processor's esp and ebp in halt so that we can return to the parent process
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------- CHECK POINT 4 -----------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+File:   paging.c
+Bug:    pagefault when executing fish
+FiX:    put vidmap system call into sys_call_table
+
+File:   paging.c
+Bug:    pagefault when executing fish
+Fix:    set up the correct page for the video map
+
+File:   filesystem.c
+Bug:    can only execute ls and grep once
+Fix:    set up correct file position in fda in dir_read function
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------- CHECK POINT 5 -----------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+File:   scheduler.c
+Bug:    pagefault when executing program
+FiX:    when doing content switch, load the wrong parent ebp value instead of next process ebp
+
+File:   system_calls.c
+Bug:    shell cannot execute with scheduler
+Fix:    add cli at the beginning to prevent PIT from interruptting the execute
+
+File:   scheduler.c & terminal.c
+Bug:    content shows on random terminal, video memory does match terminal
+Fix:    still figuring out
